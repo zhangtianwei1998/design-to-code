@@ -15,8 +15,7 @@ Only one of the two? The assistant will ask before entering the workflow.
 
 | # | Skill | Purpose | Input | Output |
 |---|-------|---------|-------|--------|
-| 0 | `using-design-to-code` | Entry meta-skill | — | Dispatches to skill 1 |
-| 1 | `brainstorming-from-design` | Understand the design + user intent | design URL / image | `spec.md` |
+| 1 | `brainstorming-from-design` | Entry point. Understand the design + user intent | design URL / image | `spec.md` |
 | 2 | `writing-plans` | Decompose into subagent-ready tasks | `spec.md` | `plan.md` |
 | 3 | `subagent-driven-development` | Implement with per-task spec + quality review and final review | `plan.md` | code + `progress.md` |
 | 4 | `tdd-verify-from-spec` | Drive playwright to verify each acceptance item | `spec.md` + running app | `verify.log.md` |
