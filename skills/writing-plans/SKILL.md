@@ -19,7 +19,7 @@ This skill writes documentation only; no production code.
 
 If `spec.md` covers multiple independent subsystems that don't share an acceptance surface, stop and ask the user to return to `design-to-code:brainstorming-from-design` to split the spec. One `plan.md` should produce one shippable, verifiable feature.
 
-Do NOT regenerate or duplicate the acceptance checklist. `spec.md` is the single source of truth for acceptance; `plan.md` references its items, never copies them.
+Do NOT regenerate or duplicate the acceptance checklist. `spec.md` is the single source of truth for acceptance; `plan.md` describes which acceptance a task covers semantically, and never copies or quotes the spec's wording.
 
 ## File Structure
 
@@ -46,16 +46,18 @@ Each task entry MUST have:
   - Modify: `exact/path/to/existing.tsx`
 - **Depends on**: <task ids or "none">
 - **Acceptance**:
-  - Satisfies spec.md item: "<exact quote of the acceptance item>"
+  - Covers the spec.md acceptance item(s) about <semantic description, e.g. "empty-state copy + CTA visibility on the cart page">
   - Type-check passes; this task introduces no compile errors
 - **Notes for subagent**: <hints, reference patterns, gotchas>
 ````
+
+**Why semantic descriptions, not quoted text:** the `spec-reviewer` subagent reads both `spec.md` and the implementation at review time and compares line-by-line; it does not need `plan.md` to anchor on verbatim strings. Quoting fragments of `spec.md` into `plan.md` creates a brittle link that silently breaks when `spec.md` is revised.
 
 Each task must be:
 
 - Independently deliverable (no implicit dependency on a later task's output).
 - Sized for a single subagent context (typically ≤ 3–5 tightly coupled files).
-- Tied to a concrete completion criterion, either quoting a `spec.md` acceptance item or a local check.
+- Tied to a concrete completion criterion — a semantic description of which `spec.md` acceptance(s) it covers, plus a local check (type-check / no compile errors).
 - Marked with `Depends on` explicitly; dependency graph must be acyclic.
 
 ## Plan Document Header
@@ -92,7 +94,7 @@ Every task must contain the actual content a subagent needs. These are **plan fa
 - "Add appropriate error handling" / "add validation" / "handle edge cases"
 - "Similar to Task N" (spell it out — subagents may read tasks out of order)
 - References to types, functions, files that no task introduces or defines
-- Vague acceptance like "works correctly" (use a spec.md quote or a type-check)
+- Vague acceptance like "works correctly" (use a semantic description of the spec.md acceptance + a type-check)
 
 ## Checklist
 
@@ -132,7 +134,7 @@ digraph writing_plans {
 
 After writing the complete plan, look at the spec with fresh eyes and check the plan against it.
 
-1. **Spec coverage** — every acceptance item in `spec.md` is quoted in at least one task's Acceptance. List any gaps and add tasks to fill them.
+1. **Spec coverage** — every acceptance item in `spec.md` is covered by at least one task's Acceptance (described semantically, not quoted). List any gaps and add tasks to fill them.
 2. **Placeholder scan** — search for the patterns in "No Placeholders" above. Fix any hit.
 3. **Type consistency** — types, method signatures, and property names used in later tasks must match what earlier tasks define. A function called `clearLayers()` in Task 3 and `clearFullLayers()` in Task 7 is a bug.
 4. **Scope check** — no task introduces features beyond `spec.md`. Remove any.

@@ -37,6 +37,7 @@ Users may skip to a later skill when upstream artifacts already exist (have `spe
 - Artifact directory: `docs/design-to-code/<YYYY-MM-DD>-<topic>/`. Filenames are fixed: `spec.md`, `plan.md`, `progress.md`, `verify.log.md`.
 - `spec.md` is immutable to the assistant; only the user may edit it. `plan.md` is written only by `design-to-code:writing-plans`. `progress.md` is appended only by `design-to-code:subagent-driven-development`. `verify.log.md` is written only by `design-to-code:tdd-verify-from-spec`. No skill writes into another skill's artifact.
 - Do not write artifact files on `main` / `release`. A feature branch or worktree must exist first.
+- **Upstream-artifact defects: the user is the only valid trigger for rework.** If a downstream skill finds that `spec.md` or `plan.md` is wrong, contradictory, or missing something load-bearing, it MUST stop and report to the user. The downstream skill MUST NOT edit the upstream artifact itself. Once the user revises `spec.md` (or asks to re-run `design-to-code:writing-plans`), all downstream artifacts built from the old version are considered invalid and must be rebuilt.
 
 ## Activation
 
