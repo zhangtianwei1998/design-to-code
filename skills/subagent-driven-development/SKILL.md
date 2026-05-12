@@ -1,15 +1,15 @@
 ---
 name: subagent-driven-development
-description: Use after design-to-code:writing-plans completes and plan.md is user-approved. Dispatches fresh implementer subagents per task; each task passes spec-review and code-quality-review before completion; a final-review covers the whole set. Main agent orchestrates; it never edits code. MUST be followed by design-to-code:tdd-verify-from-spec.
+description: Use after design-to-code:writing-plans completes and plan.md is user-approved. Dispatches fresh implementer subagents per task; each task passes spec-review and code-quality-review before completion. Main agent orchestrates; it never edits code. MUST be followed by design-to-code:tdd-verify-from-spec.
 ---
 
 # Subagent-Driven Development
 
-Execute `plan.md` by dispatching a fresh subagent per task, with two-stage review (spec compliance then code quality) after each, and a final-review pass before hand-off. The main agent orchestrates; it never edits code directly.
+Execute `plan.md` by dispatching a fresh subagent per task, with two-stage review (spec compliance then code quality) after each. The main agent orchestrates; it never edits code directly.
 
 **Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions, you keep them focused and preserve your own context for coordination. They should never inherit your session's history — construct exactly what they need.
 
-**Core principle:** Fresh subagent per task + two-stage review (spec then quality) + a final review = high quality, fast iteration.
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration.
 
 **Continuous execution:** Do not pause to check in with the user between tasks. Execute all tasks from the plan without stopping. The only reasons to stop are: BLOCKED status you cannot resolve, ambiguity that genuinely prevents progress, or all tasks complete.
 
@@ -42,8 +42,7 @@ You MUST create a task for each of these items and complete them in order:
 3. **Dispatch implementer subagents task-by-task** — follow the per-task loop in "The Process" below. Parallel dispatch only when `Files` sets don't overlap and `Depends on` is clear.
 4. **Per task: pass spec-review, then code-quality-review** — no shortcutting the order.
 5. **Append to `progress.md`** after each task completes.
-6. **Dispatch final-reviewer** once all tasks complete. On failure, locate the offending tasks and re-enter the per-task loop.
-7. **Hand off** — invoke `design-to-code:tdd-verify-from-spec`.
+6. **Hand off** — once all tasks are complete, invoke `design-to-code:tdd-verify-from-spec`.
 
 ## The Process
 
@@ -68,9 +67,6 @@ digraph process {
 
     "Read plan.md, extract all tasks, create TodoWrite" [shape=box];
     "More tasks remain?" [shape=diamond];
-    "Dispatch final-reviewer (./final-reviewer-prompt.md)" [shape=box];
-    "Final review passes?" [shape=diamond];
-    "Locate offending tasks, re-enter per-task loop" [shape=box];
     "Invoke design-to-code:tdd-verify-from-spec" [shape=doublecircle];
 
     "Read plan.md, extract all tasks, create TodoWrite" -> "Dispatch implementer (./implementer-prompt.md)";
@@ -89,11 +85,7 @@ digraph process {
     "Code-quality review passes?" -> "Mark task complete; append progress.md" [label="yes"];
     "Mark task complete; append progress.md" -> "More tasks remain?";
     "More tasks remain?" -> "Dispatch implementer (./implementer-prompt.md)" [label="yes"];
-    "More tasks remain?" -> "Dispatch final-reviewer (./final-reviewer-prompt.md)" [label="no"];
-    "Dispatch final-reviewer (./final-reviewer-prompt.md)" -> "Final review passes?";
-    "Final review passes?" -> "Locate offending tasks, re-enter per-task loop" [label="no"];
-    "Locate offending tasks, re-enter per-task loop" -> "Dispatch implementer (./implementer-prompt.md)";
-    "Final review passes?" -> "Invoke design-to-code:tdd-verify-from-spec" [label="yes"];
+    "More tasks remain?" -> "Invoke design-to-code:tdd-verify-from-spec" [label="no"];
 }
 ```
 
@@ -125,9 +117,9 @@ Implementer subagents report one of four statuses. Handle each appropriately:
 
 Never ignore an escalation or force the same model to retry without changes.
 
-## Failure Thresholds
+## Review Loops Have No Round Cap
 
-If the same task fails the same reviewer stage for **2 consecutive rounds**, pause and report to the user. Do not silently continue.
+If a reviewer keeps finding issues, the implementer keeps fixing until the reviewer approves. There is no maximum round count — quality gates do not expire. If a loop feels stuck, the response is to diagnose root cause (task cut too large, plan unclear, wrong model) and adjust, not to time it out.
 
 ## Concurrency
 
@@ -138,7 +130,6 @@ Multiple ready tasks (no open `Depends on`) whose `Files` sets do not overlap ma
 - `./implementer-prompt.md` — sent to implementer subagents.
 - `./spec-reviewer-prompt.md` — sent to spec-compliance reviewer subagents.
 - `./code-quality-reviewer-prompt.md` — sent to code-quality reviewer subagents.
-- `./final-reviewer-prompt.md` — sent to the final reviewer after all tasks complete.
 
 ## Red Flags
 
@@ -149,7 +140,6 @@ Multiple ready tasks (no open `Depends on`) whose `Files` sets do not overlap ma
 - Move to the next task while either review has open issues.
 - Dispatch multiple implementer subagents for the same task (conflicts).
 - Make a subagent read `plan.md`; provide the full task text instead.
-- Skip the final-reviewer pass.
 - Start on `main`/`release` without an explicit user-created feature branch or worktree.
 
 **If a subagent asks questions:** answer clearly and completely before letting them proceed.
@@ -175,7 +165,7 @@ Multiple ready tasks (no open `Depends on`) whose `Files` sets do not overlap ma
 
 **Required workflow skills:**
 - **design-to-code:writing-plans** — produces the `plan.md` this skill executes.
-- **design-to-code:tdd-verify-from-spec** — runs after all tasks + final review pass.
+- **design-to-code:tdd-verify-from-spec** — runs after all tasks complete.
 
 **Subagents follow (inside their prompts):**
 - TDD discipline per task — failing test first, then the minimal change to make it pass, then commit.

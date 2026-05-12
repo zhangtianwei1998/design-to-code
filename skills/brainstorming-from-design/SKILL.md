@@ -1,11 +1,18 @@
 ---
 name: brainstorming-from-design
-description: Entry point for the design-to-code workflow. Use when the user provides a design URL or image AND expresses intent to implement it ("实现", "做出来", "还原", "照这个写", "implement this", "build this"). Inspects the design via playwright or multimodal reading, conducts grill-me style Q&A, and produces a user-approved spec.md. MUST be followed by design-to-code:writing-plans.
+description: Entry point for the design-to-code workflow. Use when the user provides any visual source (design URL, attached image, Figma/Sketch screenshot, an already-rendered page in this project, etc.) AND expresses intent to implement or extend it ("实现", "做出来", "还原", "照这个写", "照这个页面扩展", "implement this", "build this", "extend this page"). Inspects the visual source via playwright or multimodal reading, conducts interview-style Q&A, and produces a user-approved spec.md. MUST be followed by design-to-code:writing-plans.
 ---
 
 # Brainstorming from Design
 
-Transform a design URL or image into a user-approved `spec.md`, then hand off to `design-to-code:writing-plans`. This skill is the **entry point** of the 4-stage `design-to-code` workflow and owns the "design → spec" stage only; no code is written here.
+Transform any visual source into a user-approved `spec.md`, then hand off to `design-to-code:writing-plans`. This skill is the **entry point** of the 4-stage `design-to-code` workflow and owns the "visual source → spec" stage only; no code is written here.
+
+A "visual source" is anything the assistant can read through playwright or multimodally:
+
+- External design URL (Figma public link, design tool export page, staging site, etc.)
+- One or more image attachments (screenshot, photo of a whiteboard, exported PNG)
+- A page already rendered by the current project (user says "扩展这个页面", "照着这个组件再做一个")
+- A combination of the above (multiple images + a reference page)
 
 **Announce at start:** "I'm using the brainstorming-from-design skill to turn this design into a spec."
 
@@ -28,12 +35,12 @@ Users may skip to a later skill when upstream artifacts already exist (have `spe
 
 - Internal references MUST use `design-to-code:<skill-name>`. References to `superpowers:*` are forbidden within this plugin.
 - Artifact directory: `docs/design-to-code/<YYYY-MM-DD>-<topic>/`. Filenames are fixed: `spec.md`, `plan.md`, `progress.md`, `verify.log.md`.
-- `spec.md` is immutable to the assistant; only the user may edit it. `plan.md` is written only by `design-to-code:writing-plans`. `progress.md` is appended only by `design-to-code:subagent-driven-development` (exception: `design-to-code:tdd-verify-from-spec` may append a single "verification complete" section at the very end).
+- `spec.md` is immutable to the assistant; only the user may edit it. `plan.md` is written only by `design-to-code:writing-plans`. `progress.md` is appended only by `design-to-code:subagent-driven-development`. `verify.log.md` is written only by `design-to-code:tdd-verify-from-spec`. No skill writes into another skill's artifact.
 - Do not write artifact files on `main` / `release`. A feature branch or worktree must exist first.
 
 ## Activation
 
-When both (a) the user's message contains a design URL or image attachment AND (b) the message expresses implementation intent, proceed with the Checklist below. Do not ask whether to enter the workflow — the two conditions are the entry contract.
+When both (a) the user's message references a visual source the assistant can read (URL, image attachment, or a page in the current project) AND (b) the message expresses implementation or extension intent, proceed with the Checklist below. Do not ask whether to enter the workflow — the two conditions are the entry contract.
 
 When only one of the two conditions is present, ask the user whether they want to enter the workflow. Do not auto-proceed.
 
@@ -42,9 +49,9 @@ When only one of the two conditions is present, ask the user whether they want t
 You MUST create a task for each of these items and complete them in order:
 
 1. **Explore project context** — read `CLAUDE.md`, recent commits, related feature directories; identify framework stack.
-2. **Ensure a feature worktree/branch exists** — never write artifact files on `main`/`release`. If no feature branch, create one (or a worktree) before any file write.
-3. **Ingest visual source** — playwright (URL) or multimodal image read (image). See the Ingest section below.
-4. **Grill-me Q&A** — one question at a time, walking the six mandatory branches. See the Q&A section below.
+2. **Ensure a feature worktree/branch exists** — never write artifact files on `main`/`release`. If the current branch is already a feature branch, skip. Otherwise follow the procedure in "Feature branch / worktree setup" below.
+3. **Ingest visual source** — playwright (URL or in-project page), multimodal image read (image attachment), or both. See the Ingest section below.
+4. **Interview the user** — ask one question at a time using the protocol in the Interview section below. Prefer codebase exploration over asking.
 5. **Feature-point confirmation** — summarize understood feature points as bullets; user confirms or corrects each.
 6. **Write `spec.md`** to `docs/design-to-code/<YYYY-MM-DD>-<topic>/spec.md` with the fixed section set.
 7. **Spec self-review** — inline scan for placeholders, contradictions, scope drift, ambiguity; fix inline.
@@ -57,11 +64,13 @@ You MUST create a task for each of these items and complete them in order:
 digraph brainstorming_from_design {
     "Explore project context" [shape=box];
     "Feature branch/worktree exists?" [shape=diamond];
-    "Create feature branch/worktree" [shape=box];
-    "Visual source is URL or image?" [shape=diamond];
+    "Ask: worktree or new branch? + branch name" [shape=box];
+    "Create branch or worktree per user choice" [shape=box];
+    "Visual source type?" [shape=diamond];
     "playwright open --headed --persistent" [shape=box];
-    "Read image via multimodal" [shape=box];
-    "Grill-me Q&A (6 branches, one question at a time)" [shape=box];
+    "Read image(s) via multimodal" [shape=box];
+    "playwright open on in-project page" [shape=box];
+    "Interview the user (one question at a time)" [shape=box];
     "Feature-point confirmation" [shape=box];
     "Write spec.md" [shape=box];
     "Spec self-review (fix inline)" [shape=box];
@@ -69,14 +78,17 @@ digraph brainstorming_from_design {
     "Invoke design-to-code:writing-plans" [shape=doublecircle];
 
     "Explore project context" -> "Feature branch/worktree exists?";
-    "Feature branch/worktree exists?" -> "Create feature branch/worktree" [label="no"];
-    "Feature branch/worktree exists?" -> "Visual source is URL or image?" [label="yes"];
-    "Create feature branch/worktree" -> "Visual source is URL or image?";
-    "Visual source is URL or image?" -> "playwright open --headed --persistent" [label="URL"];
-    "Visual source is URL or image?" -> "Read image via multimodal" [label="image"];
-    "playwright open --headed --persistent" -> "Grill-me Q&A (6 branches, one question at a time)";
-    "Read image via multimodal" -> "Grill-me Q&A (6 branches, one question at a time)";
-    "Grill-me Q&A (6 branches, one question at a time)" -> "Feature-point confirmation";
+    "Feature branch/worktree exists?" -> "Ask: worktree or new branch? + branch name" [label="no"];
+    "Feature branch/worktree exists?" -> "Visual source type?" [label="yes"];
+    "Ask: worktree or new branch? + branch name" -> "Create branch or worktree per user choice";
+    "Create branch or worktree per user choice" -> "Visual source type?";
+    "Visual source type?" -> "playwright open --headed --persistent" [label="external URL"];
+    "Visual source type?" -> "Read image(s) via multimodal" [label="image"];
+    "Visual source type?" -> "playwright open on in-project page" [label="in-project page"];
+    "playwright open --headed --persistent" -> "Interview the user (one question at a time)";
+    "Read image(s) via multimodal" -> "Interview the user (one question at a time)";
+    "playwright open on in-project page" -> "Interview the user (one question at a time)";
+    "Interview the user (one question at a time)" -> "Feature-point confirmation";
     "Feature-point confirmation" -> "Write spec.md";
     "Write spec.md" -> "Spec self-review (fix inline)";
     "Spec self-review (fix inline)" -> "User approves spec?";
@@ -89,33 +101,38 @@ digraph brainstorming_from_design {
 
 ## The Process
 
+**Feature branch / worktree setup (Checklist step 2):**
+
+If the current branch is already a feature branch (not `main` / `master` / `release` / etc.), skip this section.
+
+Otherwise, do not auto-create anything. Ask the user two questions in succession:
+
+1. **Isolation mode** — "Do you want to work in a new git worktree (isolated working copy) or just create a new branch on the current working copy?" Provide a recommended answer based on signals in the project (if there is already a `.claude/worktrees/` directory or the user has used worktrees before, recommend worktree; otherwise recommend a new branch).
+2. **Branch name** — propose one concrete branch name derived from the visual source (e.g., `feature/cart-empty-state`, `feature/project-settings-export`). Ask the user to confirm or overwrite.
+
+Only after both answers are in, create the worktree (via `git worktree add`) or the branch (`git checkout -b`) and switch to it. Do not write any artifact files before the switch succeeds.
+
 **Ingest visual source:**
 
-- **If a design URL:**
+- **External design URL:**
   - Run `playwright --version`; on failure, `npm install -g @playwright/cli@latest`.
   - Run `playwright open <url> --headed --persistent`. Headed + persistent are REQUIRED; without them login cannot be carried across sessions.
   - Prompt the user to finish any login flow in the opened browser before continuing.
   - Read the design content via screenshots and DOM inspection.
-- **If an image attachment:** read the image directly using the multimodal capability. Do NOT launch playwright.
+- **Image attachment(s):** read the image(s) directly using the multimodal capability. Do NOT launch playwright. If multiple images, read them all before starting the interview.
+- **In-project page (user wants to extend or mirror an existing page/component):**
+  - Locate the relevant files in the codebase first (route, component, related slices).
+  - Start the project's dev server if not already running (follow project conventions; ask the user if unclear).
+  - Run `playwright open <dev-url> --headed --persistent` and read the current state of the page.
+  - During the interview, treat the existing page as the "before" state and clarify what should change.
 
-**Grill-me Q&A (methodology adapted from mattpocock `grill-me`):**
+**Interview the user:**
 
-- One question at a time. Walk the decision tree systematically; later branches may change based on earlier answers.
-- Every question carries a recommended answer with rationale.
-- Prefer grepping / reading the project over asking the user; only ask for true intent or business judgment.
-- Prefer multiple choice over open-ended.
-- Do not stop early to save tokens; stop only when understanding is genuinely shared.
+Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
 
-**Branches that MUST be covered, in order:**
+Ask the questions one at a time.
 
-1. **Interface layer** — new backend endpoints? Existing ones gaining fields or being restructured? Contract source (OpenAPI / already implemented / not yet written)? Backward-compat requirement?
-2. **Entry point & location** — which page, route, component hosts the feature? Trigger (button, menu, right-click, URL param, hotkey)? Permission / gating / role constraints?
-3. **Interaction details** — loading / empty / error states? Confirm, undo, toast, redirect, inline update?
-4. **Data & state** — new state location (Redux slice / local / URL query)? Persistence (redux-persist whitelist)? Concurrency / optimistic update?
-5. **i18n / styling** — does copy need zh-CN and en-US? antd theme or `antd-style` custom?
-6. **Non-goals** — explicitly confirm what is NOT being built.
-
-After each branch, emit a short summary of that branch and let the user confirm before moving on.
+If a question can be answered by exploring the codebase, explore the codebase instead.
 
 **Feature-point confirmation:** summarize the understood feature points as bullets; the user confirms or corrects each before spec is written.
 
@@ -149,7 +166,7 @@ Wait for explicit approval. On changes, return to "Write `spec.md`".
 - **One question at a time** — don't overwhelm with multiple questions.
 - **Multiple choice preferred** — easier to answer than open-ended when possible.
 - **YAGNI ruthlessly** — remove unnecessary features from the spec.
-- **Incremental validation** — confirm each grill-me branch before the next.
+- **Incremental validation** — confirm each decision branch before moving to the next.
 - **Spec is immutable after approval** — downstream skills read it; they cannot modify it.
 
 ## Artifacts
