@@ -41,8 +41,9 @@ You MUST create a task for each of these items and complete them in order:
 2. **Create TodoWrite tasks** — one per plan task, preserving the `Depends on` relationships.
 3. **Group ready tasks, then dispatch** — before each dispatch round, collect all tasks whose `Depends on` are satisfied and whose `Files` sets do not overlap with each other. Send all of them in a single message as parallel Agent calls. Tasks that share files or have unresolved dependencies are dispatched alone in their own round.
 4. **Per task: pass spec-review, then code-quality-review** — no shortcutting the order. Reviews for different tasks are handled serially by the main agent.
-5. **Append to `progress.md`** after each task completes.
-6. **Hand off** — once all tasks are complete, invoke `design-to-code:tdd-verify-from-spec`.
+5. **Main agent commits after quality review passes** — use the task's `Files` list from `plan.md` to stage only that task's files (`git add <exact paths>`). Never use `git add .` or `git add -A`. Implementer subagents do NOT commit.
+6. **Append to `progress.md`** after each task completes.
+7. **Hand off** — once all tasks are complete, invoke `design-to-code:tdd-verify-from-spec`.
 
 ## The Process
 
@@ -55,14 +56,15 @@ digraph process {
         "Dispatch implementer (./implementer-prompt.md)" [shape=box];
         "Implementer has questions?" [shape=diamond];
         "Answer questions, re-dispatch implementer" [shape=box];
-        "Implementer implements, tests, commits, self-reviews" [shape=box];
+        "Implementer implements, tests, self-reviews" [shape=box];
         "Dispatch spec-reviewer (./spec-reviewer-prompt.md)" [shape=box];
         "Spec review passes?" [shape=diamond];
         "Re-dispatch implementer with spec feedback" [shape=box];
         "Dispatch code-quality-reviewer (./code-quality-reviewer-prompt.md)" [shape=box];
         "Code-quality review passes?" [shape=diamond];
         "Re-dispatch implementer with quality feedback" [shape=box];
-        "Mark task complete; append progress.md" [shape=box];
+        "Main agent: git add <task files>; git commit" [shape=box];
+        "Append progress.md" [shape=box];
     }
 
     "Read plan.md, extract all tasks, create TodoWrite" [shape=box];
@@ -79,8 +81,8 @@ digraph process {
     "Dispatch implementer (./implementer-prompt.md)" -> "Implementer has questions?";
     "Implementer has questions?" -> "Answer questions, re-dispatch implementer" [label="yes"];
     "Answer questions, re-dispatch implementer" -> "Dispatch implementer (./implementer-prompt.md)";
-    "Implementer has questions?" -> "Implementer implements, tests, commits, self-reviews" [label="no"];
-    "Implementer implements, tests, commits, self-reviews" -> "Dispatch spec-reviewer (./spec-reviewer-prompt.md)";
+    "Implementer has questions?" -> "Implementer implements, tests, self-reviews" [label="no"];
+    "Implementer implements, tests, self-reviews" -> "Dispatch spec-reviewer (./spec-reviewer-prompt.md)";
     "Dispatch spec-reviewer (./spec-reviewer-prompt.md)" -> "Spec review passes?";
     "Spec review passes?" -> "Re-dispatch implementer with spec feedback" [label="no"];
     "Re-dispatch implementer with spec feedback" -> "Dispatch spec-reviewer (./spec-reviewer-prompt.md)";
@@ -88,13 +90,11 @@ digraph process {
     "Dispatch code-quality-reviewer (./code-quality-reviewer-prompt.md)" -> "Code-quality review passes?";
     "Code-quality review passes?" -> "Re-dispatch implementer with quality feedback" [label="no"];
     "Re-dispatch implementer with quality feedback" -> "Dispatch code-quality-reviewer (./code-quality-reviewer-prompt.md)";
-    "Code-quality review passes?" -> "Mark task complete; append progress.md" [label="yes"];
-    "Mark task complete; append progress.md" -> "Ready tasks remain?";
+    "Code-quality review passes?" -> "Main agent: git add <task files>; git commit" [label="yes"];
+    "Main agent: git add <task files>; git commit" -> "Append progress.md";
+    "Append progress.md" -> "Ready tasks remain?";
 }
 ```
-    "More tasks remain?" -> "Dispatch implementer (./implementer-prompt.md)" [label="yes"];
-    "More tasks remain?" -> "Invoke design-to-code:tdd-verify-from-spec" [label="no"];
-}
 ```
 
 ## Model Selection
