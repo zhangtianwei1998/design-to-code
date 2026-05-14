@@ -24,6 +24,15 @@ The main agent drives playwright-cli against the running app to verify each acce
 - Every failure MUST be classified as either Category A (code-in-repo issue that a fixer could plausibly resolve) or Category B (out-of-repo issue: test case itself ambiguous or wrong, backend data anomaly, environment/dependency issue, or underlying `spec.md` defect). The classification determines the failure threshold (see below).
 - Internal references only `design-to-code:*`.
 
+## Session Bootstrap
+
+When invoked in a fresh session where the `spec.md` path was not passed from a previous skill:
+
+1. Run `find docs/design-to-code -name "spec.md" | sort` to discover existing specs.
+2. **One result** → load it automatically. Also load `progress.md` from the same directory if it exists (to understand what was implemented).
+3. **Multiple results** → list them to the user (show the date-topic directory name for each) and ask which feature to continue with. Wait for the answer before proceeding. Then load `spec.md` and `progress.md` from the chosen directory.
+4. **No results** → report that no `spec.md` was found under `docs/design-to-code/`; ask the user to run `design-to-code:brainstorming-from-design` first.
+
 ## Process
 
 1. **Pre-flight** — ensure the dev server is running (if not, ask the user how to start or start it per project conventions). Ensure `@playwright/cli` is installed (install on miss via `npm install -g @playwright/cli@latest`).

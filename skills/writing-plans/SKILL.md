@@ -100,6 +100,15 @@ Every task must contain the actual content a subagent needs. These are **plan fa
 - References to types, functions, files that no task introduces or defines
 - Vague acceptance like "works correctly" (use a semantic description of the spec.md acceptance + a type-check)
 
+## Session Bootstrap
+
+When invoked in a fresh session where the `spec.md` path was not passed from a previous skill:
+
+1. Run `find docs/design-to-code -name "spec.md" | sort` to discover existing specs.
+2. **One result** → load it automatically and proceed.
+3. **Multiple results** → list them to the user (show the date-topic directory name for each) and ask which feature to continue with. Wait for the answer before proceeding.
+4. **No results** → report that no `spec.md` was found under `docs/design-to-code/`; ask the user to run `design-to-code:brainstorming-from-design` first.
+
 ## Checklist
 
 You MUST create a task for each of these items and complete them in order:

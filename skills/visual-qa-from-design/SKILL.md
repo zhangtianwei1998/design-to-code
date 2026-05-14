@@ -26,6 +26,15 @@ The main agent drives playwright-cli to screenshot the running app, then compare
 - Every visual failure MUST be classified as Category A (fixable by editing code in the repo) or Category B (not fixable by code: spec ambiguous, design source unavailable/inconclusive, environment/font issue, design intentionally diverged after user decision). The category determines the failure threshold.
 - Internal references only `design-to-code:*`.
 
+## Session Bootstrap
+
+When invoked in a fresh session where the `spec.md` path was not passed from a previous skill:
+
+1. Run `find docs/design-to-code -name "spec.md" | sort` to discover existing specs.
+2. **One result** → load it automatically and extract the "Design source" field.
+3. **Multiple results** → list them to the user (show the date-topic directory name for each) and ask which feature to continue with. Wait for the answer before proceeding.
+4. **No results** → report that no `spec.md` was found under `docs/design-to-code/`; ask the user to run `design-to-code:brainstorming-from-design` first.
+
 ## Checklist
 
 You MUST create a task for each of these items and complete them in order:
