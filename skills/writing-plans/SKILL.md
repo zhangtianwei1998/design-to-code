@@ -15,6 +15,10 @@ This skill writes documentation only; no production code.
 
 **Save plans to:** `docs/design-to-code/<YYYY-MM-DD>-<topic>/plan.md` (co-located with `spec.md`).
 
+## Language
+
+`plan.md` MUST be written entirely in Chinese (Simplified). This applies to all section headings, task names, goal descriptions, notes, and acceptance descriptions. Code identifiers, file paths, and proper nouns (framework names, library names) remain in their original form.
+
 ## Scope Check
 
 If `spec.md` covers multiple independent subsystems that don't share an acceptance surface, stop and ask the user to return to `design-to-code:brainstorming-from-design` to split the spec. One `plan.md` should produce one shippable, verifiable feature.

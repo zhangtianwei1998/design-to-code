@@ -32,6 +32,10 @@ This plugin runs five skills in order. Each produces a single artifact that the 
 
 Users may skip to a later skill when upstream artifacts already exist (have `spec.md` → jump to `writing-plans`; have `plan.md` → jump to `subagent-driven-development`).
 
+## Language
+
+`spec.md` MUST be written entirely in Chinese (Simplified). This applies to all section headings, feature descriptions, acceptance checklist items, and notes. Code identifiers, file paths, and proper nouns (framework names, library names) remain in their original form.
+
 ## Shared Discipline (applies to every skill in this plugin)
 
 - Internal references MUST use `design-to-code:<skill-name>`. References to `superpowers:*` are forbidden within this plugin.
