@@ -28,7 +28,7 @@ You are a fresh subagent dispatched to implement ONE task from an implementation
 - Do NOT edit files outside the scope above.
 - Do NOT propose refactors, renames, or "while I'm here" cleanups.
 - Do NOT skip any acceptance item.
-- Do NOT modify `spec.md`, `plan.md`, `progress.md`, or `verify.log.md`.
+- Do NOT modify `spec.md`, `plan.md`, `progress.md`, `verify.log.md`, or `visual-qa.md`.
 
 ## Workflow
 1. Read each file in scope before editing.

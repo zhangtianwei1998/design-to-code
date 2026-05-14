@@ -10,9 +10,9 @@ The main agent drives playwright-cli against the running app to verify each acce
 ## Plugin-wide discipline (shared HARD-GATE)
 
 - Internal references MUST use `design-to-code:<skill-name>`. References to `superpowers:*` are forbidden.
-- Artifact directory is `docs/design-to-code/<YYYY-MM-DD>-<topic>/`. Filenames are fixed: `spec.md`, `plan.md`, `progress.md`, `verify.log.md`.
+- Artifact directory is `docs/design-to-code/<YYYY-MM-DD>-<topic>/`. Filenames are fixed: `spec.md`, `plan.md`, `progress.md`, `verify.log.md`, `visual-qa.md`.
 - Convert this skill's checklist into TodoWrite tasks and execute in order; no skipping.
-- `spec.md` is immutable to the assistant; only the user may edit it. `plan.md` is written only by `design-to-code:writing-plans`. `progress.md` is appended only by `design-to-code:subagent-driven-development`. `verify.log.md` is written only by this skill. No skill writes into another skill's artifact.
+- `spec.md` is immutable to the assistant; only the user may edit it. `plan.md` is written only by `design-to-code:writing-plans`. `progress.md` is appended only by `design-to-code:subagent-driven-development`. `verify.log.md` is written only by this skill. `visual-qa.md` is written only by `design-to-code:visual-qa-from-design`. No skill writes into another skill's artifact.
 - Do not write artifact files on `main` / `release`. A feature branch or worktree must exist first.
 
 ## Hard gates
