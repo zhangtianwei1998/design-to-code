@@ -110,7 +110,8 @@ You MUST create a task for each of these items and complete them in order:
 4. **Write `plan.md`** to `docs/design-to-code/<YYYY-MM-DD>-<topic>/plan.md` using the required header and task format.
 5. **Self-Review** — run the checks in the Self-Review section; fix inline.
 6. **User approval** — `Read` the `plan.md` into the conversation. On requested changes, return to step 4.
-7. **Hand off** — invoke `design-to-code:subagent-driven-development`, passing the `plan.md` path.
+7. **Commit `plan.md`** — once approved, commit the file with a message like `docs: add plan.md for <topic>`. Do not proceed until the commit succeeds.
+8. **Hand off** — invoke `design-to-code:subagent-driven-development`, passing the `plan.md` path.
 
 ## Process Flow
 
@@ -122,6 +123,7 @@ digraph writing_plans {
     "Write plan.md" [shape=box];
     "Self-review (fix inline)" [shape=box];
     "User approves plan?" [shape=diamond];
+    "Commit plan.md" [shape=box];
     "Invoke design-to-code:subagent-driven-development" [shape=doublecircle];
 
     "Read spec.md in full" -> "Code exploration";
@@ -130,7 +132,8 @@ digraph writing_plans {
     "Write plan.md" -> "Self-review (fix inline)";
     "Self-review (fix inline)" -> "User approves plan?";
     "User approves plan?" -> "Write plan.md" [label="changes requested"];
-    "User approves plan?" -> "Invoke design-to-code:subagent-driven-development" [label="approved"];
+    "User approves plan?" -> "Commit plan.md" [label="approved"];
+    "Commit plan.md" -> "Invoke design-to-code:subagent-driven-development";
 }
 ```
 
@@ -148,11 +151,18 @@ Fix inline. No re-review loop; fix and move on.
 
 ## Execution Handoff
 
-After the user approves `plan.md`, hand off:
+After the user approves `plan.md`, commit it immediately:
 
-> "Plan approved and saved to `<path>`. Handing off to `design-to-code:subagent-driven-development` to execute task-by-task."
+```bash
+git add <plan.md path>
+git commit -m "docs: add plan.md for <topic>"
+```
 
-Do NOT offer the "subagent-driven vs inline" choice. Within `design-to-code`, subagent-driven execution is the only path.
+Then hand off:
+
+> "Plan approved and committed. Handing off to `design-to-code:subagent-driven-development` to execute task-by-task."
+
+Do NOT invoke `design-to-code:subagent-driven-development` until the commit succeeds. Do NOT offer the "subagent-driven vs inline" choice. Within `design-to-code`, subagent-driven execution is the only path.
 
 ## Artifacts
 

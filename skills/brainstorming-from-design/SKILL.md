@@ -62,7 +62,8 @@ You MUST create a task for each of these items and complete them in order:
 6. **Write `spec.md`** to `docs/design-to-code/<YYYY-MM-DD>-<topic>/spec.md` with the fixed section set.
 7. **Spec self-review** — inline scan for placeholders, contradictions, scope drift, ambiguity; fix inline.
 8. **User reviews written spec** — `Read` the file into the conversation; wait for explicit approval. If changes requested, return to step 6.
-9. **Hand off** — invoke `design-to-code:writing-plans`, passing the `spec.md` path.
+9. **Commit `spec.md`** — once approved, commit the file with a message like `docs: add spec.md for <topic>`. Do not proceed until the commit succeeds.
+10. **Hand off** — invoke `design-to-code:writing-plans`, passing the `spec.md` path.
 
 ## Process Flow
 
@@ -81,6 +82,7 @@ digraph brainstorming_from_design {
     "Write spec.md" [shape=box];
     "Spec self-review (fix inline)" [shape=box];
     "User approves spec?" [shape=diamond];
+    "Commit spec.md" [shape=box];
     "Invoke design-to-code:writing-plans" [shape=doublecircle];
 
     "Explore project context" -> "Feature branch/worktree exists?";
@@ -99,7 +101,8 @@ digraph brainstorming_from_design {
     "Write spec.md" -> "Spec self-review (fix inline)";
     "Spec self-review (fix inline)" -> "User approves spec?";
     "User approves spec?" -> "Write spec.md" [label="changes requested"];
-    "User approves spec?" -> "Invoke design-to-code:writing-plans" [label="approved"];
+    "User approves spec?" -> "Commit spec.md" [label="approved"];
+    "Commit spec.md" -> "Invoke design-to-code:writing-plans";
 }
 ```
 
@@ -166,6 +169,15 @@ Fix inline. No re-review loop; fix and move on.
 > "Spec written to `<path>`. Please review it and let me know if you want any changes before I hand off to `design-to-code:writing-plans`."
 
 Wait for explicit approval. On changes, return to "Write `spec.md`".
+
+Once approved, commit immediately:
+
+```bash
+git add <spec.md path>
+git commit -m "docs: add spec.md for <topic>"
+```
+
+Do not invoke `design-to-code:writing-plans` until the commit succeeds.
 
 ## Key Principles
 
