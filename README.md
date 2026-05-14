@@ -109,30 +109,59 @@ Re-run visual QA only?    → invoke design-to-code:visual-qa-from-design
 - [Claude Code](https://claude.ai/code) with the [superpowers](https://github.com/superpowers-ai/superpowers) plugin installed (provides the `Skill` tool)
 - `node >= 18` on the host (playwright is auto-installed by stages 1, 4, and 5 if missing)
 
-### 1. Clone the plugin
+### Global install (available in every project)
 
 ```bash
 git clone https://github.com/tianweizhang/design-to-code \
   ~/.claude/plugins/local/design-to-code
 ```
 
-Or if you already have a checkout elsewhere, symlink it:
+Or symlink an existing checkout:
 
 ```bash
 ln -s /path/to/design-to-code ~/.claude/plugins/local/design-to-code
 ```
 
-### 2. Verify discovery
+### Project-level install (scoped to one repo)
 
-Open Claude Code and run:
+Use a git submodule so the plugin version is pinned alongside your code:
+
+```bash
+# inside your project root
+git submodule add https://github.com/tianweizhang/design-to-code \
+  .claude/plugins/local/design-to-code
+git commit -m "chore: add design-to-code plugin"
+```
+
+Other team members get it automatically after:
+
+```bash
+git submodule update --init --recursive
+```
+
+To upgrade the plugin later:
+
+```bash
+cd .claude/plugins/local/design-to-code
+git pull origin master
+cd -
+git add .claude/plugins/local/design-to-code
+git commit -m "chore: upgrade design-to-code plugin"
+```
+
+> **Global vs project-level:** global install applies to all your projects; project-level install is committed to the repo and shared with the team. Pick project-level when you want everyone on the project to use the same plugin version, or when you don't want it active globally.
+
+### Verify discovery
+
+Open Claude Code in the project and run:
 
 ```
 /plugins
 ```
 
-You should see `design-to-code` in the list. If not, check that `~/.claude/plugins/local/` exists and contains `plugin.json`.
+You should see `design-to-code` in the list. If not, check that the directory contains `plugin.json`.
 
-### 3. Use it
+### Use it
 
 Send Claude a message with a design source and intent, for example:
 
