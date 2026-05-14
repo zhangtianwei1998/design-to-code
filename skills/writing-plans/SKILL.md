@@ -112,12 +112,12 @@ When invoked in a fresh session where the `spec.md` path was not passed from a p
 
 You MUST create a task for each of these items and complete them in order:
 
-1. **Read `spec.md` in full** — do not defer this to a subagent; the main agent must hold the whole design in mind to decompose well.
-2. **Code exploration** — explore the codebase enough to decompose with confidence. Depth is bounded by "enough to split tasks"; do not aim for exhaustive coverage.
-3. **Decompose into functional units** — apply the Task Structure constraints above. Build the dependency graph; verify it's acyclic.
-4. **Write `plan.md`** to `docs/design-to-code/<YYYY-MM-DD>-<topic>/plan.md` using the required header and task format.
-5. **Self-Review** — run the checks in the Self-Review section; fix inline.
-6. **User approval** — `Read` the `plan.md` into the conversation. On requested changes, return to step 4.
+1. **Read `spec.md` in full** — the main agent must hold the design intent to verify the subagent's output.
+2. **Explore shared context** — identify framework stack, path aliases, linting rules, and state-management conventions. This is passed to the subagent so it can explore the codebase effectively.
+3. **Dispatch plan-writer subagent** — copy `./plan-writer-prompt.md`, fill the variables, and dispatch. The subagent reads the spec, explores the codebase, decomposes into tasks, and writes `plan.md`. The main agent does NOT do the decomposition itself.
+4. **Review subagent output** — read the returned plan path, task count, dependency graph, key risks. If the plan-writer signals a blocking issue (spec gap, acyclic dependency impossible), stop and report to the user before proceeding.
+5. **Self-Review** — run the checks in the Self-Review section against the written `plan.md`; fix inline (main agent edits plan.md directly for any self-review fixes).
+6. **User approval** — `Read` the `plan.md` into the conversation. On requested changes, return to step 3 with updated instructions.
 7. **Commit `plan.md`** — once approved, commit the file with a message like `docs: add plan.md for <topic>`. Do not proceed until the commit succeeds.
 8. **Hand off** — invoke `design-to-code:subagent-driven-development`, passing the `plan.md` path.
 
@@ -126,20 +126,20 @@ You MUST create a task for each of these items and complete them in order:
 ```dot
 digraph writing_plans {
     "Read spec.md in full" [shape=box];
-    "Code exploration" [shape=box];
-    "Decompose into functional units" [shape=box];
-    "Write plan.md" [shape=box];
+    "Explore shared context" [shape=box];
+    "Dispatch plan-writer subagent (./plan-writer-prompt.md)" [shape=box];
+    "Review subagent output" [shape=box];
     "Self-review (fix inline)" [shape=box];
     "User approves plan?" [shape=diamond];
     "Commit plan.md" [shape=box];
     "Invoke design-to-code:subagent-driven-development" [shape=doublecircle];
 
-    "Read spec.md in full" -> "Code exploration";
-    "Code exploration" -> "Decompose into functional units";
-    "Decompose into functional units" -> "Write plan.md";
-    "Write plan.md" -> "Self-review (fix inline)";
+    "Read spec.md in full" -> "Explore shared context";
+    "Explore shared context" -> "Dispatch plan-writer subagent (./plan-writer-prompt.md)";
+    "Dispatch plan-writer subagent (./plan-writer-prompt.md)" -> "Review subagent output";
+    "Review subagent output" -> "Self-review (fix inline)";
     "Self-review (fix inline)" -> "User approves plan?";
-    "User approves plan?" -> "Write plan.md" [label="changes requested"];
+    "User approves plan?" -> "Dispatch plan-writer subagent (./plan-writer-prompt.md)" [label="changes requested"];
     "User approves plan?" -> "Commit plan.md" [label="approved"];
     "Commit plan.md" -> "Invoke design-to-code:subagent-driven-development";
 }
@@ -171,6 +171,10 @@ Then hand off:
 > "Plan approved and committed. Handing off to `design-to-code:subagent-driven-development` to execute task-by-task."
 
 Do NOT invoke `design-to-code:subagent-driven-development` until the commit succeeds. Do NOT offer the "subagent-driven vs inline" choice. Within `design-to-code`, subagent-driven execution is the only path.
+
+## Prompt Files
+
+- `./plan-writer-prompt.md` — template for the plan-writer subagent. The main agent copies this, fills in `{{SPEC_PATH}}`, `{{PROJECT_ROOT}}`, `{{SHARED_CONTEXT}}`, and `{{PLAN_PATH}}`, then dispatches it via the Agent tool.
 
 ## Artifacts
 
