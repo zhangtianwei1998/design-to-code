@@ -1,63 +1,162 @@
 # design-to-code
 
-A Claude Code plugin that turns any visual source (design URL, attached image, or an already-rendered page in this project) plus explicit implementation intent into a verified implementation, through a 4-stage, linear, spec-driven workflow.
+A Claude Code plugin that turns any visual source (design URL, attached image, or an already-rendered page) plus explicit implementation intent into a verified, pixel-faithful implementation — through a 5-stage, linear, spec-driven workflow.
 
-## Trigger
+---
 
-The plugin activates when a single message contains:
+## Workflow
 
-1. A visual source the assistant can read — a design URL, an image attachment, or a reference to an existing page/component in the current project, AND
-2. Explicit implementation or extension intent ("实现", "做出来", "还原", "照这个写", "照这个页面扩展", "implement this", "build this", "extend this page").
+```mermaid
+flowchart TD
+    USER(["User: visual source\n+ implementation intent"])
 
-Only one of the two? The assistant will ask before entering the workflow.
+    subgraph S1["① brainstorming-from-design"]
+        direction LR
+        a1["Ingest visual source\n(playwright / multimodal)"] --> a2["Interview user"] --> a3["Write spec.md\n+ user approval"]
+    end
 
-## Skills
+    subgraph S2["② writing-plans"]
+        direction LR
+        b1["Read spec.md"] --> b2["Explore codebase"] --> b3["Write plan.md\n+ user approval"]
+    end
 
-| # | Skill | Purpose | Input | Output |
-|---|-------|---------|-------|--------|
-| 1 | `brainstorming-from-design` | Entry point. Understand the visual source + user intent | URL / image / in-project page | `spec.md` |
-| 2 | `writing-plans` | Decompose into subagent-ready tasks | `spec.md` | `plan.md` |
-| 3 | `subagent-driven-development` | Implement with per-task spec + quality review | `plan.md` | code + `progress.md` |
-| 4 | `tdd-verify-from-spec` | Drive playwright to verify each acceptance item | `spec.md` + running app | `verify.log.md` |
+    subgraph S3["③ subagent-driven-development"]
+        direction LR
+        c1["Dispatch implementer\nsubagent per task"] --> c2["Spec review"] --> c3["Code quality review"]
+        c3 -. "fail → retry" .-> c1
+    end
 
-## Artifacts
+    subgraph S4["④ tdd-verify-from-spec"]
+        direction LR
+        d1["Drive playwright\nagainst running app"] --> d2{"Pass?"}
+        d2 -- "fail" --> d3["Dispatch fixer\nsubagent"] --> d1
+        d2 -- "pass" --> d4["✅ Record in\nverify.log.md"]
+    end
 
-All produced under `docs/design-to-code/<YYYY-MM-DD>-<topic>/` in the user's project:
+    subgraph S5["⑤ visual-qa-from-design"]
+        direction LR
+        e1["Load design reference\n(multimodal / playwright)"] --> e2["Screenshot each view"] --> e3{"Visual match?"}
+        e3 -- "discrepancy" --> e4["Dispatch visual-fixer\nsubagent"] --> e2
+        e3 -- "match" --> e5["✅ Record in\nvisual-qa.md"]
+    end
 
-- `spec.md` — produced by skill 1; user-approved; **never** edited by the assistant afterward
-- `plan.md` — produced by skill 2
-- `progress.md` — appended by skill 3 (one entry per task)
-- `verify.log.md` — written by skill 4 (one entry per acceptance item)
+    DONE(["Implementation verified\nfunctionally + visually ✅"])
+
+    USER --> S1
+    S1 -->|"spec.md"| S2
+    S2 -->|"plan.md"| S3
+    S3 -->|"code + progress.md"| S4
+    S4 -->|"verify.log.md"| S5
+    S5 --> DONE
+```
+
+### How each stage works
+
+| # | Skill | What it does | Consumes | Produces |
+|---|-------|-------------|----------|----------|
+| 1 | `brainstorming-from-design` | Opens design in playwright or reads images multimodally; interviews you question-by-question; writes a user-approved spec | URL / image / in-project page | `spec.md` |
+| 2 | `writing-plans` | Explores the codebase, decomposes the spec into subagent-sized tasks with explicit file lists and acceptance criteria | `spec.md` | `plan.md` |
+| 3 | `subagent-driven-development` | Dispatches a fresh implementer subagent per task; each task passes spec-review then code-quality-review before moving on | `plan.md` | code + `progress.md` |
+| 4 | `tdd-verify-from-spec` | Drives playwright against the running app; checks every acceptance item from spec.md; dispatches fixer subagents on failures | `spec.md` + running app | `verify.log.md` |
+| 5 | `visual-qa-from-design` | Screenshots each view, compares multimodally against the original design source, dispatches visual-fixer subagents for pixel-level gaps | `spec.md` design source + running app | `visual-qa.md` |
+
+### Artifacts
+
+All files land under `docs/design-to-code/<YYYY-MM-DD>-<topic>/` in your project:
+
+```
+docs/design-to-code/2025-06-01-cart-empty-state/
+├── spec.md          ← stage 1 (user-approved; never edited by assistant afterward)
+├── plan.md          ← stage 2
+├── progress.md      ← stage 3 (one entry per task)
+├── verify.log.md    ← stage 4 (one entry per acceptance item)
+├── visual-qa.md     ← stage 5 (one entry per view)
+└── screenshots/     ← stage 5 screenshots
+```
 
 No skill writes into another skill's artifact.
 
-## Manual entry from later stages
+---
 
-- Have `spec.md` already → invoke `design-to-code:writing-plans` directly.
-- Have `plan.md` already → invoke `design-to-code:subagent-driven-development` directly.
-- Want to re-verify an existing implementation → invoke `design-to-code:tdd-verify-from-spec` directly.
+## Trigger
 
-## Dependencies
+The plugin activates when a single message contains **both**:
 
-- Required on host: `node`, `pnpm`, `@playwright/cli` (auto-installed by skills 1 and 4 if missing).
+1. A visual source — a design URL, an image attachment, or a reference to an existing page/component in the current project, **and**
+2. Explicit implementation intent — "实现", "做出来", "还原", "照这个写", "implement this", "build this", "extend this page".
 
-## Relationship to superpowers
+Only one of the two conditions? Claude will ask before entering the workflow.
 
-Inspired by superpowers conventions (subagent-driven-development, test-driven-development, writing-plans) but this plugin is **self-contained**. It does not depend on superpowers at runtime and does not reference the superpowers plugin from any `SKILL.md`.
+---
 
-## Troubleshooting
+## Skipping to a later stage
 
-- **Playwright install fails** — try `npm install -g @playwright/cli@latest` manually; ensure node >= 18.
-- **Login session lost between verifications** — confirm the browser was opened with `--headed --persistent`. Non-persistent sessions lose cookies.
-- **Fixer loops 5 times without success** — the skill pauses and reports. Treat this as a signal to redesign the task manually, or to split the acceptance item into smaller sub-items.
+If upstream artifacts already exist, jump in directly:
+
+```
+Have spec.md already?     → invoke design-to-code:writing-plans
+Have plan.md already?     → invoke design-to-code:subagent-driven-development
+Re-verify existing build? → invoke design-to-code:tdd-verify-from-spec
+Re-run visual QA only?    → invoke design-to-code:visual-qa-from-design
+```
+
+---
 
 ## Installation
 
-Local install (no marketplace):
+### Prerequisites
+
+- [Claude Code](https://claude.ai/code) with the [superpowers](https://github.com/superpowers-ai/superpowers) plugin installed (provides the `Skill` tool)
+- `node >= 18` on the host (playwright is auto-installed by stages 1, 4, and 5 if missing)
+
+### 1. Clone the plugin
 
 ```bash
-# from the plugin's parent directory
-ln -s "$(pwd)/design-to-code" ~/.claude/plugins/local/design-to-code
+git clone https://github.com/tianweizhang/design-to-code \
+  ~/.claude/plugins/local/design-to-code
 ```
 
-Then enable in your Claude Code settings.
+Or if you already have a checkout elsewhere, symlink it:
+
+```bash
+ln -s /path/to/design-to-code ~/.claude/plugins/local/design-to-code
+```
+
+### 2. Verify discovery
+
+Open Claude Code and run:
+
+```
+/plugins
+```
+
+You should see `design-to-code` in the list. If not, check that `~/.claude/plugins/local/` exists and contains `plugin.json`.
+
+### 3. Use it
+
+Send Claude a message with a design source and intent, for example:
+
+```
+Here's the Figma link for the new checkout page: https://figma.com/...
+Implement it.
+```
+
+Claude will announce `"I'm using the brainstorming-from-design skill…"` and walk you through the workflow.
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| Playwright install fails | Run `npm install -g @playwright/cli@latest` manually; ensure node ≥ 18 |
+| Login session lost between verifications | Confirm the browser was opened with `--headed --persistent`; non-persistent sessions lose cookies |
+| Fixer loops without converging (stage 4) | Skill pauses at 5 rounds and reports; treat this as a signal to redesign the acceptance item or split it |
+| Visual-fixer loops without converging (stage 5) | Skill pauses at 3 rounds and reports; check whether the design reference is clear enough to derive an exact value |
+| Plugin not discovered | Ensure `~/.claude/plugins/local/design-to-code/plugin.json` exists and superpowers is installed |
+
+---
+
+## Relationship to superpowers
+
+Inspired by superpowers conventions (subagent-driven-development, test-driven-development, writing-plans) but **self-contained** at runtime. No skill references `superpowers:*` internally.
