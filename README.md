@@ -109,47 +109,82 @@ Re-run visual QA only?    → invoke design-to-code:visual-qa-from-design
 - [Claude Code](https://claude.ai/code) with the [superpowers](https://github.com/superpowers-ai/superpowers) plugin installed (provides the `Skill` tool)
 - `node >= 18` on the host (playwright is auto-installed by stages 1, 4, and 5 if missing)
 
-### Global install (available in every project)
+### Option A — Direct skills install (recommended, no plugin wrapper)
+
+Copy the skills directly into your project's `.claude/skills/` directory. No `plugin.json` needed; superpowers discovers skill folders from `.claude/skills/` automatically.
+
+```bash
+# inside your project root
+git submodule add https://github.com/tianweizhang/design-to-code \
+  .claude/skills/design-to-code
+git commit -m "chore: add design-to-code skills"
+```
+
+Or copy without submodule (no version tracking):
+
+```bash
+cp -r /path/to/design-to-code/skills/. .claude/skills/
+```
+
+Resulting structure in your project:
+
+```
+.claude/
+└── skills/
+    ├── brainstorming-from-design/
+    │   └── SKILL.md
+    ├── writing-plans/
+    │   └── SKILL.md
+    ├── subagent-driven-development/
+    │   ├── SKILL.md
+    │   └── *.md
+    ├── tdd-verify-from-spec/
+    │   ├── SKILL.md
+    │   └── *.md
+    └── visual-qa-from-design/
+        ├── SKILL.md
+        └── visual-fixer-prompt.md
+```
+
+Invoke any skill by name, e.g. `design-to-code:brainstorming-from-design` — or just send Claude a message with a design source and implementation intent and it will trigger automatically.
+
+To upgrade later:
+
+```bash
+cd .claude/skills/design-to-code
+git pull origin master
+cd -
+git add .claude/skills/design-to-code
+git commit -m "chore: upgrade design-to-code skills"
+```
+
+### Option B — Global plugin install
+
+Install once and have it available in every project:
 
 ```bash
 git clone https://github.com/tianweizhang/design-to-code \
   ~/.claude/plugins/local/design-to-code
 ```
 
-Or symlink an existing checkout:
+### Option C — Project-scoped plugin install
+
+Pin the plugin version inside the repo so the whole team gets it:
 
 ```bash
-ln -s /path/to/design-to-code ~/.claude/plugins/local/design-to-code
-```
-
-### Project-level install (scoped to one repo)
-
-Use a git submodule so the plugin version is pinned alongside your code:
-
-```bash
-# inside your project root
 git submodule add https://github.com/tianweizhang/design-to-code \
   .claude/plugins/local/design-to-code
 git commit -m "chore: add design-to-code plugin"
 ```
 
-Other team members get it automatically after:
+Team members run `git submodule update --init --recursive` to pull it down.
 
-```bash
-git submodule update --init --recursive
-```
+---
 
-To upgrade the plugin later:
-
-```bash
-cd .claude/plugins/local/design-to-code
-git pull origin master
-cd -
-git add .claude/plugins/local/design-to-code
-git commit -m "chore: upgrade design-to-code plugin"
-```
-
-> **Global vs project-level:** global install applies to all your projects; project-level install is committed to the repo and shared with the team. Pick project-level when you want everyone on the project to use the same plugin version, or when you don't want it active globally.
+> **Which option?**
+> - **A** — you want the skills scoped to this repo, no plugin infrastructure, simplest to reason about.
+> - **B** — you use these skills across many projects and don't want per-repo setup.
+> - **C** — same as A but you prefer the plugin namespace (`design-to-code:skill-name`) and want `plugin.json` metadata available.
 
 ### Verify discovery
 
@@ -159,7 +194,7 @@ Open Claude Code in the project and run:
 /plugins
 ```
 
-You should see `design-to-code` in the list. If not, check that the directory contains `plugin.json`.
+You should see the skills listed. If not, check that the directory contains `SKILL.md` files at the expected paths.
 
 ### Use it
 
