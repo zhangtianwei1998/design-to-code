@@ -1,11 +1,11 @@
 ---
 name: visual-qa-from-design
-description: Use after design-to-code:tdd-verify-from-spec completes. Opens the implemented pages via playwright (headed, persistent), takes screenshots of each view, and compares them multimodally against the original design source recorded in spec.md. Reports visual discrepancies (layout, spacing, color, typography); dispatches visual-fixer subagents for code-fixable issues. Terminal skill of the design-to-code workflow. Must be used any time the user asks to "验收样式", "对比设计稿", "还原度检查", or after tdd-verify-from-spec finishes.
+description: Use after design-to-code:tdd-verify-from-spec completes. Dispatches one view-verifier subagent per view to screenshot and compare against the original design source; dispatches visual-fixer subagents for code-fixable issues. Terminal skill of the design-to-code workflow. Must be used any time the user asks to "验收样式", "对比设计稿", "还原度检查", or after tdd-verify-from-spec finishes.
 ---
 
 # Visual QA from Design
 
-The main agent drives playwright-cli to screenshot the running app, then compares each screenshot multimodally against the original design source from `spec.md`. Visual discrepancies dispatch visual-fixer subagents. This is the **terminal skill** of the `design-to-code` workflow.
+The main agent orchestrates visual fidelity verification by dispatching one `view-verifier` subagent per view. Each subagent screenshots the running app and compares it multimodally against the original design source. Code-fixable discrepancies dispatch visual-fixer subagents. This is the **terminal skill** of the `design-to-code` workflow.
 
 **Announce at start:** "I'm using the visual-qa-from-design skill to compare the implementation against the original design."
 
@@ -19,12 +19,15 @@ The main agent drives playwright-cli to screenshot the running app, then compare
 
 ## Hard gates
 
-- playwright-cli MUST be driven by the main agent (browser session must stay on the main agent's instance for screenshot continuity).
 - Code fixes MUST go through a visual-fixer subagent; the main agent does not edit code.
 - `spec.md` is immutable here. Do NOT weaken or change acceptance items or design references to make comparison pass.
 - Every view is recorded as ✅ / ❌ in `visual-qa.md`.
 - Every visual failure MUST be classified as Category A (fixable by editing code in the repo) or Category B (not fixable by code: spec ambiguous, design source unavailable/inconclusive, environment/font issue, design intentionally diverged after user decision). The category determines the failure threshold.
 - Internal references only `design-to-code:*`.
+
+## Shared playwright profile
+
+All view-verifier subagents use `~/.playwright-profiles/design-to-code` as the persistent profile directory. The login session written during pre-flight is on disk and available to every subagent — no re-login needed.
 
 ## Session Bootstrap
 
@@ -40,20 +43,19 @@ You MUST create a task for each of these items and complete them in order:
 
 1. **Read `spec.md`** — extract the "Design source" field (image path or URL). Identify the views/states to check from "Feature points" and "Acceptance checklist".
 2. **Pre-flight** — ensure the dev server is running. Ensure `@playwright/cli` is installed (`npm install -g @playwright/cli@latest` on miss).
-3. **Load design reference** — read the original design into your context (see "Loading the design reference" below).
-4. **Launch browser** — `playwright open <dev-url> --headed --persistent`. Prompt user to log in if needed.
-5. **Per-view visual comparison loop** — for each identified view, screenshot and compare (see "Per-view loop" below).
-6. **Write `visual-qa.md`** — record the full results.
-7. **Report to user** — summarise overall fidelity, list any unresolved Category B items. This skill is terminal; do not hand off.
+3. **Establish browser session** — run once on the main agent: `playwright open <dev-url> --headed --persistent ~/.playwright-profiles/design-to-code`. Prompt user to log in if needed. This writes the session to disk for all view-verifier subagents.
+4. **Per-view dispatch loop** — for each identified view, dispatch a `view-verifier` subagent (see "Per-view loop" below).
+5. **Write `visual-qa.md`** — record the full results.
+6. **Report to user** — summarise overall fidelity, list any unresolved Category B items. This skill is terminal; do not hand off.
 
 ## Loading the design reference
 
-The design source is recorded in `spec.md` under "Design source". Two cases:
+The design source is recorded in `spec.md` under "Design source". Pass it as `{{DESIGN_REFERENCE}}` in each view-verifier prompt:
 
-- **Image path(s):** Read the image(s) directly using multimodal capability. Hold the visual in context for subsequent comparisons. If there are multiple images (one per view/state), map each image to the corresponding view.
-- **External URL (Figma, staging, etc.):** Open the URL in a separate browser window (you may reuse the persistent session) and take a full-page screenshot. Use that screenshot as the reference. If it requires login, prompt the user to authenticate in the opened browser.
+- **Image path(s):** pass the file path directly. The view-verifier subagent reads the image via multimodal capability.
+- **External URL (Figma, staging, etc.):** pass the URL. The view-verifier opens it with playwright and takes a screenshot to use as reference. If it requires login, establish that session in pre-flight as well.
 
-Keep the design reference image(s) in active context throughout the comparison loop — do not re-read them for every view.
+If there are multiple images (one per view/state), map each image to the corresponding view.
 
 ## Identifying views to check
 
@@ -69,20 +71,15 @@ Aim to cover every view that has a corresponding design reference image or secti
 
 For each view, in order:
 
-1. **Navigate** to the view in the persistent browser. Trigger any state needed (e.g. empty cart, logged-out).
-2. **Screenshot** — capture the full viewport. Save to `docs/design-to-code/<YYYY-MM-DD>-<topic>/screenshots/<view-name>.png`. If a scroll is needed (long page), capture above-the-fold first; note below-the-fold as a separate sub-view.
-3. **Compare** — visually inspect the screenshot against the design reference using multimodal reasoning. Check these dimensions in order:
-   - **Layout & structure**: element positions, stacking, alignment, grid/flex structure
-   - **Spacing**: margins, paddings, gaps between elements
-   - **Color & contrast**: background, text color, border color, icon fill
-   - **Typography**: font family, weight, size, line-height, letter-spacing
-   - **Component shape**: border-radius, shadow, icon shape/size
-   - **Content & copy**: placeholder text, labels, button text (if spec confirms exact copy)
-4. **Record** the result in `visual-qa.md`:
-   - On **pass** (no meaningful discrepancies): ✅ with screenshot path.
-   - On **fail**: ❌ with screenshot path, a bullet list of discrepancies, and classification (see below).
-5. **Category A failures** → dispatch a visual-fixer subagent (`./visual-fixer-prompt.md`). After fixer returns, wait briefly for HMR if applicable, take a fresh screenshot, and re-compare. Re-run the SAME view — do not advance to the next one.
-6. **Category B failures** → do NOT dispatch a fixer. Record the category and reasoning. Move to the next view.
+1. **Determine screenshot output path** — `docs/design-to-code/<YYYY-MM-DD>-<topic>/screenshots/<view-name>.png`.
+2. **Dispatch view-verifier subagent** — copy `./view-verifier-prompt.md`, fill all `{{...}}` variables, and dispatch.
+3. **When subagent returns:**
+   - **PASS**: record ✅ with screenshot path in `visual-qa.md`. Proceed to next view.
+   - **FAIL**:
+     1. Record ❌ with discrepancy list from subagent return.
+     2. **Classify** as Category A or Category B (the subagent includes a suggested classification; use it or override with reasoning).
+     3. For **Category A**: dispatch a visual-fixer subagent (`./visual-fixer-prompt.md`). After fixer returns, dispatch a fresh view-verifier for the SAME view.
+     4. For **Category B**: record the category and reasoning. Move to the next view.
 
 ## Failure classification
 
@@ -104,11 +101,9 @@ digraph visual_qa {
 
     "Read spec.md: design source + views" [shape=box];
     "Pre-flight: dev server + playwright" [shape=box];
-    "Load design reference (multimodal or playwright)" [shape=box];
-    "Launch browser --headed --persistent" [shape=box];
+    "Establish browser session (shared profile)" [shape=box];
     "More views?" [shape=diamond];
-    "Navigate + screenshot view" [shape=box];
-    "Multimodal compare vs design reference" [shape=box];
+    "Dispatch view-verifier subagent" [shape=box];
     "Discrepancies?" [shape=diamond];
     "Record ✅ in visual-qa.md" [shape=box];
     "Classify: A or B?" [shape=diamond];
@@ -119,13 +114,11 @@ digraph visual_qa {
     "Write visual-qa.md + report" [shape=doublecircle];
 
     "Read spec.md: design source + views" -> "Pre-flight: dev server + playwright";
-    "Pre-flight: dev server + playwright" -> "Load design reference (multimodal or playwright)";
-    "Load design reference (multimodal or playwright)" -> "Launch browser --headed --persistent";
-    "Launch browser --headed --persistent" -> "More views?";
-    "More views?" -> "Navigate + screenshot view" [label="yes"];
+    "Pre-flight: dev server + playwright" -> "Establish browser session (shared profile)";
+    "Establish browser session (shared profile)" -> "More views?";
+    "More views?" -> "Dispatch view-verifier subagent" [label="yes"];
     "More views?" -> "Write visual-qa.md + report" [label="no"];
-    "Navigate + screenshot view" -> "Multimodal compare vs design reference";
-    "Multimodal compare vs design reference" -> "Discrepancies?" ;
+    "Dispatch view-verifier subagent" -> "Discrepancies?";
     "Discrepancies?" -> "Record ✅ in visual-qa.md" [label="none"];
     "Discrepancies?" -> "Classify: A or B?" [label="found"];
     "Record ✅ in visual-qa.md" -> "More views?";
@@ -134,14 +127,15 @@ digraph visual_qa {
     "Record ❌ Category B (no fixer)" -> "More views?";
     "Record ❌ + dispatch visual-fixer" -> "Threshold hit?";
     "Threshold hit?" -> "Pause + report to user" [label="yes"];
-    "Threshold hit?" -> "Navigate + screenshot view" [label="no — re-screenshot same view"];
+    "Threshold hit?" -> "Dispatch view-verifier subagent" [label="no — re-verify same view"];
     "Pause + report to user" -> "More views?" [label="user responds"];
 }
 ```
 
-## Prompt file
+## Prompt files
 
-- `./visual-fixer-prompt.md` — sent to visual-fixer subagents (Category A failures only)
+- `./view-verifier-prompt.md` — template for the view-verifier subagent. Fill `{{VIEW_NAME}}`, `{{VIEW_URL}}`, `{{PLAYWRIGHT_PROFILE_PATH}}` (use `~/.playwright-profiles/design-to-code`), `{{DEV_URL}}`, `{{DESIGN_REFERENCE}}`, and `{{SCREENSHOT_PATH}}` before dispatching.
+- `./visual-fixer-prompt.md` — sent to visual-fixer subagents (Category A failures only).
 
 ## Artifacts
 

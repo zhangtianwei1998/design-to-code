@@ -105,7 +105,6 @@ digraph process {
     "Append progress.md" -> "Ready tasks remain?";
 }
 ```
-```
 
 ## Model Selection
 
@@ -148,6 +147,8 @@ Multiple ready tasks (no open `Depends on`) whose `Files` sets do not overlap ma
 - `./implementer-prompt.md` — sent to implementer subagents.
 - `./spec-reviewer-prompt.md` — sent to spec-compliance reviewer subagents.
 - `./code-quality-reviewer-prompt.md` — sent to code-quality reviewer subagents.
+
+Reviewer subagents return compact verdicts: `PASS` or `FAIL`, per-item findings, and required fixes. The main agent reads only the verdict and the required-fixes list — do not accumulate the full review body in context. Pass the required-fixes list verbatim to the next implementer dispatch.
 
 ## Red Flags
 

@@ -1,11 +1,11 @@
 ---
 name: brainstorming-from-design
-description: Entry point for the design-to-code workflow. Use when the user provides any visual source (design URL, attached image, Figma/Sketch screenshot, an already-rendered page in this project, etc.) AND expresses intent to implement or extend it ("实现", "做出来", "还原", "照这个写", "照这个页面扩展", "implement this", "build this", "extend this page"). Inspects the visual source via playwright or multimodal reading, conducts interview-style Q&A, and produces a user-approved spec.md. MUST be followed by design-to-code:writing-plans.
+description: Entry point for the design-to-code workflow. Use when the user provides any visual source (design URL, attached image, Figma/Sketch screenshot, an already-rendered page in this project, etc.) AND expresses intent to implement or extend it ("实现", "做出来", "还原", "照这个写", "照这个页面扩展", "implement this", "build this", "extend this page"). Dispatches a design-explorer subagent to inspect the visual source, conducts interview-style Q&A, and produces a user-approved spec.md. MUST be followed by design-to-code:writing-plans.
 ---
 
 # Brainstorming from Design
 
-Transform any visual source into a user-approved `spec.md`, then hand off to `design-to-code:writing-plans`. This skill is the **entry point** of the 4-stage `design-to-code` workflow and owns the "visual source → spec" stage only; no code is written here.
+Transform any visual source into a user-approved `spec.md`, then hand off to `design-to-code:writing-plans`. This skill is the **entry point** of the 5-stage `design-to-code` workflow and owns the "visual source → spec" stage only; no code is written here.
 
 A "visual source" is anything the assistant can read through playwright or multimodally:
 
@@ -56,8 +56,8 @@ You MUST create a task for each of these items and complete them in order:
 
 1. **Explore project context** — read `CLAUDE.md`, recent commits, related feature directories; identify framework stack.
 2. **Ensure a feature worktree/branch exists** — never write artifact files on `main`/`release`. If the current branch is already a feature branch, skip. Otherwise follow the procedure in "Feature branch / worktree setup" below.
-3. **Ingest visual source** — playwright (URL or in-project page), multimodal image read (image attachment), or both. See the Ingest section below.
-4. **Interview the user** — ask one question at a time using the protocol in the Interview section below. Prefer codebase exploration over asking.
+3. **Dispatch design-explorer subagent** — fill `./design-explorer-prompt.md` with the visual source and the shared playwright profile path (use `~/.playwright-profiles/design-to-code`). The subagent handles all playwright and multimodal work; the main agent receives only the structured design summary. Do not do any playwright or image reading in the main agent.
+4. **Interview the user** — use the design summary from the subagent as the basis. Ask one question at a time. Prefer answers derivable from the summary over asking.
 5. **Feature-point confirmation** — summarize understood feature points as bullets; user confirms or corrects each.
 6. **Write `spec.md`** to `docs/design-to-code/<YYYY-MM-DD>-<topic>/spec.md` with the fixed section set.
 7. **Spec self-review** — inline scan for placeholders, contradictions, scope drift, ambiguity; fix inline.
@@ -73,10 +73,8 @@ digraph brainstorming_from_design {
     "Feature branch/worktree exists?" [shape=diamond];
     "Ask: worktree or new branch? + branch name" [shape=box];
     "Create branch or worktree per user choice" [shape=box];
-    "Visual source type?" [shape=diamond];
-    "playwright open --headed --persistent" [shape=box];
-    "Read image(s) via multimodal" [shape=box];
-    "playwright open on in-project page" [shape=box];
+    "Dispatch design-explorer subagent (./design-explorer-prompt.md)" [shape=box];
+    "Receive design summary" [shape=box];
     "Interview the user (one question at a time)" [shape=box];
     "Feature-point confirmation" [shape=box];
     "Write spec.md" [shape=box];
@@ -87,15 +85,11 @@ digraph brainstorming_from_design {
 
     "Explore project context" -> "Feature branch/worktree exists?";
     "Feature branch/worktree exists?" -> "Ask: worktree or new branch? + branch name" [label="no"];
-    "Feature branch/worktree exists?" -> "Visual source type?" [label="yes"];
+    "Feature branch/worktree exists?" -> "Dispatch design-explorer subagent (./design-explorer-prompt.md)" [label="yes"];
     "Ask: worktree or new branch? + branch name" -> "Create branch or worktree per user choice";
-    "Create branch or worktree per user choice" -> "Visual source type?";
-    "Visual source type?" -> "playwright open --headed --persistent" [label="external URL"];
-    "Visual source type?" -> "Read image(s) via multimodal" [label="image"];
-    "Visual source type?" -> "playwright open on in-project page" [label="in-project page"];
-    "playwright open --headed --persistent" -> "Interview the user (one question at a time)";
-    "Read image(s) via multimodal" -> "Interview the user (one question at a time)";
-    "playwright open on in-project page" -> "Interview the user (one question at a time)";
+    "Create branch or worktree per user choice" -> "Dispatch design-explorer subagent (./design-explorer-prompt.md)";
+    "Dispatch design-explorer subagent (./design-explorer-prompt.md)" -> "Receive design summary";
+    "Receive design summary" -> "Interview the user (one question at a time)";
     "Interview the user (one question at a time)" -> "Feature-point confirmation";
     "Feature-point confirmation" -> "Write spec.md";
     "Write spec.md" -> "Spec self-review (fix inline)";
@@ -121,19 +115,20 @@ Otherwise, do not auto-create anything. Ask the user two questions in succession
 
 Only after both answers are in, create the worktree (via `git worktree add`) or the branch (`git checkout -b`) and switch to it. Do not write any artifact files before the switch succeeds.
 
-**Ingest visual source:**
+**Dispatch design-explorer subagent (Checklist step 3):**
 
-- **External design URL:**
-  - Run `playwright --version`; on failure, `npm install -g @playwright/cli@latest`.
-  - Run `playwright open <url> --headed --persistent`. Headed + persistent are REQUIRED; without them login cannot be carried across sessions.
-  - Prompt the user to finish any login flow in the opened browser before continuing.
-  - Read the design content via screenshots and DOM inspection.
-- **Image attachment(s):** read the image(s) directly using the multimodal capability. Do NOT launch playwright. If multiple images, read them all before starting the interview.
-- **In-project page (user wants to extend or mirror an existing page/component):**
-  - Locate the relevant files in the codebase first (route, component, related slices).
-  - Start the project's dev server if not already running (follow project conventions; ask the user if unclear).
-  - Run `playwright open <dev-url> --headed --persistent` and read the current state of the page.
-  - During the interview, treat the existing page as the "before" state and clarify what should change.
+Copy `./design-explorer-prompt.md` into the Agent tool prompt, filling:
+- `{{VISUAL_SOURCE}}` — the URL, image path(s), or dev-server URL from the user's message
+- `{{PLAYWRIGHT_PROFILE_PATH}}` — `~/.playwright-profiles/design-to-code`
+- `{{SOURCE_TYPE}}` — `external-url`, `image`, or `in-project-page`
+
+The subagent handles all playwright and multimodal work. The main agent receives only the structured design summary — it never touches playwright or reads images directly.
+
+If the source type is `in-project-page`, also tell the subagent:
+- The dev server URL (start it first if not running, following project conventions)
+- Which route/component the user wants to extend, so the subagent can navigate there directly
+
+If the source is an external URL that requires login, tell the user: "A browser window will open — please complete login there, then let me know." The subagent will poll for the authenticated state.
 
 **Interview the user:**
 
@@ -199,6 +194,10 @@ Do not invoke `design-to-code:writing-plans` until the commit succeeds.
 - **YAGNI ruthlessly** — remove unnecessary features from the spec.
 - **Incremental validation** — confirm each decision branch before moving to the next.
 - **Spec is immutable after approval** — downstream skills read it; they cannot modify it.
+
+## Prompt Files
+
+- `./design-explorer-prompt.md` — template for the design-explorer subagent. Fill `{{VISUAL_SOURCE}}`, `{{PLAYWRIGHT_PROFILE_PATH}}` (use `~/.playwright-profiles/design-to-code`), and `{{SOURCE_TYPE}}` before dispatching.
 
 ## Artifacts
 

@@ -1,11 +1,11 @@
 ---
 name: tdd-verify-from-spec
-description: Use after design-to-code:subagent-driven-development completes. Main agent drives playwright-cli (headed, persistent) to verify each acceptance item in spec.md; failures dispatch fixer subagents. MUST be followed by design-to-code:visual-qa-from-design.
+description: Use after design-to-code:subagent-driven-development completes. Dispatches one ac-verifier subagent per acceptance item in spec.md; failures dispatch fixer subagents. MUST be followed by design-to-code:visual-qa-from-design.
 ---
 
 # TDD Verify from Spec
 
-The main agent drives playwright-cli against the running app to verify each acceptance item in `spec.md`. Failures dispatch fixer subagents; the loop runs until all items pass or thresholds are hit. After all items are verified, this skill hands off to `design-to-code:visual-qa-from-design` for pixel-level visual fidelity checking.
+The main agent orchestrates verification of each acceptance item in `spec.md` by dispatching one `ac-verifier` subagent per item. Each subagent uses a shared playwright persistent profile so the login session is on disk and accessible to all subagents. Failures dispatch fixer subagents. After all items are verified, this skill hands off to `design-to-code:visual-qa-from-design`.
 
 ## Plugin-wide discipline (shared HARD-GATE)
 
@@ -17,12 +17,15 @@ The main agent drives playwright-cli against the running app to verify each acce
 
 ## Hard gates
 
-- playwright-cli MUST be driven by the main agent (login session stays on the main agent's browser instance).
 - Code fixes MUST go through a fixer subagent; the main agent does not edit code.
 - `spec.md` is immutable here. The assistant MUST NOT weaken or mutate acceptance items to make verification pass.
 - Every acceptance item is recorded as pass/fail in `verify.log.md`.
 - Every failure MUST be classified as either Category A (code-in-repo issue that a fixer could plausibly resolve) or Category B (out-of-repo issue: test case itself ambiguous or wrong, backend data anomaly, environment/dependency issue, or underlying `spec.md` defect). The classification determines the failure threshold (see below).
 - Internal references only `design-to-code:*`.
+
+## Shared playwright profile
+
+All ac-verifier subagents use `~/.playwright-profiles/design-to-code` as the persistent profile directory. This means the login session written during the pre-flight step is automatically available to every subagent — no re-login needed.
 
 ## Session Bootstrap
 
@@ -34,24 +37,29 @@ When invoked in a fresh session where the `spec.md` path was not passed from a p
 
 ## Process
 
-1. **Pre-flight** — ensure the dev server is running (if not, ask the user how to start or start it per project conventions). Ensure `@playwright/cli` is installed (install on miss via `npm install -g @playwright/cli@latest`).
+1. **Pre-flight** — ensure the dev server is running (if not, ask the user how to start or start it per project conventions). Ensure `@playwright/cli` is installed (`npm install -g @playwright/cli@latest` on miss).
 
 2. **Collect dynamic URL parameters** — scan all acceptance items in `spec.md` for URLs or navigation paths that contain dynamic segments (e.g. `/teams/:teamId`, `/projects/:id/issues/:issueId`). For each dynamic segment:
    - Try to infer a concrete value from the codebase (seed files, fixtures, `.env.example`, README, or a quick DB/API query if the project supports it).
-   - If a concrete value cannot be confidently inferred, ask the user directly **before opening the browser**. Example: "AC-3 需要访问一个具体的团队页面。请问你希望用哪个团队测试？请提供团队 ID（或名称）。" Collect all unknowns in a single message — do not ask one at a time if multiple ACs share the same unknown.
-   - Record the resolved values (e.g. `teamId = 42`) so they are substituted into every AC that needs them.
+   - If a concrete value cannot be confidently inferred, ask the user directly **before dispatching any subagent**. Example: "AC-3 需要访问一个具体的团队页面。请问你希望用哪个团队测试？请提供团队 ID（或名称）。" Collect all unknowns in a single message — do not ask one at a time if multiple ACs share the same unknown.
+   - Record the resolved values (e.g. `teamId = 42`) for substitution into every AC that needs them.
 
-3. **Launch browser** — `playwright open <dev-url> --headed --persistent`. Prompt the user to log in if not already authenticated.
+3. **Establish browser session** — run once on the main agent:
+   ```
+   playwright open <dev-url> --headed --persistent ~/.playwright-profiles/design-to-code
+   ```
+   Prompt the user to log in if not already authenticated. Once the authenticated page is visible, confirm with the user before dispatching subagents. This writes the session to disk so all subsequent ac-verifier subagents share it.
 
 4. **Per-item verification loop** — for each acceptance item in `spec.md`, in order:
-   - Substitute any collected dynamic values into the item's path before navigating.
-   - Drive playwright to execute the described steps and make the described assertion (DOM inspection + screenshot reasoning).
-   - On pass: record ✅ in `verify.log.md` and proceed.
-   - On fail:
-     1. Record ❌ with the observed evidence.
-     2. **Classify** the failure as Category A or Category B (see next section).
-     3. For Category A: dispatch a fixer subagent (see `./fixer-prompt.md`). When the fixer returns, wait briefly if HMR, then re-run the SAME acceptance item.
-     4. For Category B: do NOT dispatch a fixer. Record the category and reasoning in `verify.log.md`. Optionally gather a little more evidence (e.g. one extra run to rule out flake); do not attempt a code change.
+   - Resolve any dynamic params collected in step 2.
+   - Copy `./ac-verifier-prompt.md`, fill all `{{...}}` variables, and dispatch as a subagent.
+   - When the subagent returns:
+     - **PASS**: record ✅ in `verify.log.md` and proceed to next item.
+     - **FAIL**:
+       1. Record ❌ with the subagent's assertion result and DOM evidence.
+       2. **Classify** the failure as Category A or Category B (see next section).
+       3. For Category A: dispatch a fixer subagent (see `./fixer-prompt.md`). When the fixer returns, dispatch a fresh ac-verifier for the SAME acceptance item.
+       4. For Category B: do NOT dispatch a fixer. Record the category and reasoning in `verify.log.md`.
 
 5. **Completion** — after all items pass (or are recorded as Category B), invoke `design-to-code:visual-qa-from-design` to run pixel-level visual fidelity verification against the original design source. Pass the `spec.md` path so the visual-qa skill can locate the design reference.
 
@@ -64,8 +72,8 @@ When invoked in a fresh session where the `spec.md` path was not passed from a p
 
 ## Prompt files
 
-- `./verification-loop-prompt.md` — main agent's self-reference for driving playwright
-- `./fixer-prompt.md` — sent to fixer subagents (Category A failures only)
+- `./ac-verifier-prompt.md` — template for the ac-verifier subagent. Fill `{{AC_ITEM}}`, `{{DEV_URL}}`, `{{PLAYWRIGHT_PROFILE_PATH}}` (use `~/.playwright-profiles/design-to-code`), `{{RESOLVED_PARAMS}}`, and `{{SCREENSHOT_PATH}}` before dispatching.
+- `./fixer-prompt.md` — sent to fixer subagents (Category A failures only).
 
 ## Integration
 
