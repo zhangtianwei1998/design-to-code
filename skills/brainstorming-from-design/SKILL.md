@@ -152,7 +152,20 @@ If a question can be answered by exploring the codebase, explore the codebase in
 - **Design source** — URL or image path
 - **Feature points** — each with entry, interaction, data
 - **Interface impact** — added / modified / none
-- **Acceptance checklist** — phrased for playwright verification; each item must have a concrete assertion
+- **Acceptance checklist** — 每条验收项必须包含三部分：**前置路径**（从哪个页面开始、需要什么初始状态）、**操作步骤**（按顺序列出用户动作）、**断言**（最终应观察到什么）。禁止只写结果断言而省略路径和操作，否则 playwright 无法无歧义地执行。
+
+  格式示例：
+  ```
+  - [ ] AC-N <标题>
+    前置：<初始页面或状态，例如"已登录，进入团队配置页">
+    步骤：
+      1. <动作1，例如"点击左侧导航「模块设置」">
+      2. <动作2，例如"找到「xxx模块」，点击启用">
+      3. <动作3，例如"返回团队详情页，打开任意一个 issue 详情">
+    断言：<可观测的结果，例如"issue 详情侧边栏出现「xxx」区块，标题文字为「xxx」">
+  ```
+
+  自检：每条 AC 删掉步骤后，断言能独立成立吗？如果不能，说明路径写全了；如果能，说明步骤是多余的废话，需要重写。
 - **Non-goals**
 
 **Spec self-review** — inline scan for:

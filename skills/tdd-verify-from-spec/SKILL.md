@@ -36,10 +36,16 @@ When invoked in a fresh session where the `spec.md` path was not passed from a p
 
 1. **Pre-flight** — ensure the dev server is running (if not, ask the user how to start or start it per project conventions). Ensure `@playwright/cli` is installed (install on miss via `npm install -g @playwright/cli@latest`).
 
-2. **Launch browser** — `playwright open <dev-url> --headed --persistent`. Prompt the user to log in if not already authenticated.
+2. **Collect dynamic URL parameters** — scan all acceptance items in `spec.md` for URLs or navigation paths that contain dynamic segments (e.g. `/teams/:teamId`, `/projects/:id/issues/:issueId`). For each dynamic segment:
+   - Try to infer a concrete value from the codebase (seed files, fixtures, `.env.example`, README, or a quick DB/API query if the project supports it).
+   - If a concrete value cannot be confidently inferred, ask the user directly **before opening the browser**. Example: "AC-3 需要访问一个具体的团队页面。请问你希望用哪个团队测试？请提供团队 ID（或名称）。" Collect all unknowns in a single message — do not ask one at a time if multiple ACs share the same unknown.
+   - Record the resolved values (e.g. `teamId = 42`) so they are substituted into every AC that needs them.
 
-3. **Per-item verification loop** — for each acceptance item in `spec.md`, in order:
-   - Drive playwright to execute the described interaction and make the described assertion (DOM inspection + screenshot reasoning).
+3. **Launch browser** — `playwright open <dev-url> --headed --persistent`. Prompt the user to log in if not already authenticated.
+
+4. **Per-item verification loop** — for each acceptance item in `spec.md`, in order:
+   - Substitute any collected dynamic values into the item's path before navigating.
+   - Drive playwright to execute the described steps and make the described assertion (DOM inspection + screenshot reasoning).
    - On pass: record ✅ in `verify.log.md` and proceed.
    - On fail:
      1. Record ❌ with the observed evidence.
@@ -47,7 +53,7 @@ When invoked in a fresh session where the `spec.md` path was not passed from a p
      3. For Category A: dispatch a fixer subagent (see `./fixer-prompt.md`). When the fixer returns, wait briefly if HMR, then re-run the SAME acceptance item.
      4. For Category B: do NOT dispatch a fixer. Record the category and reasoning in `verify.log.md`. Optionally gather a little more evidence (e.g. one extra run to rule out flake); do not attempt a code change.
 
-4. **Completion** — after all items pass (or are recorded as Category B), invoke `design-to-code:visual-qa-from-design` to run pixel-level visual fidelity verification against the original design source. Pass the `spec.md` path so the visual-qa skill can locate the design reference.
+5. **Completion** — after all items pass (or are recorded as Category B), invoke `design-to-code:visual-qa-from-design` to run pixel-level visual fidelity verification against the original design source. Pass the `spec.md` path so the visual-qa skill can locate the design reference.
 
 ## Failure classification and thresholds
 
