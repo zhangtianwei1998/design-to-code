@@ -39,8 +39,8 @@ You MUST create a task for each of these items and complete them in order:
 
 1. **Read `plan.md` once** — extract every task with full text and Shared Context. The main agent holds this in memory; subagents never read the plan file directly.
 2. **Create TodoWrite tasks** — one per plan task, preserving the `Depends on` relationships.
-3. **Dispatch implementer subagents task-by-task** — follow the per-task loop in "The Process" below. Parallel dispatch only when `Files` sets don't overlap and `Depends on` is clear.
-4. **Per task: pass spec-review, then code-quality-review** — no shortcutting the order.
+3. **Group ready tasks, then dispatch** — before each dispatch round, collect all tasks whose `Depends on` are satisfied and whose `Files` sets do not overlap with each other. Send all of them in a single message as parallel Agent calls. Tasks that share files or have unresolved dependencies are dispatched alone in their own round.
+4. **Per task: pass spec-review, then code-quality-review** — no shortcutting the order. Reviews for different tasks are handled serially by the main agent.
 5. **Append to `progress.md`** after each task completes.
 6. **Hand off** — once all tasks are complete, invoke `design-to-code:tdd-verify-from-spec`.
 
@@ -51,7 +51,7 @@ digraph process {
     rankdir=TB;
 
     subgraph cluster_per_task {
-        label="Per Task";
+        label="Per Task (reviews serial)";
         "Dispatch implementer (./implementer-prompt.md)" [shape=box];
         "Implementer has questions?" [shape=diamond];
         "Answer questions, re-dispatch implementer" [shape=box];
@@ -66,10 +66,16 @@ digraph process {
     }
 
     "Read plan.md, extract all tasks, create TodoWrite" [shape=box];
-    "More tasks remain?" [shape=diamond];
+    "Ready tasks remain?" [shape=diamond];
+    "Group: tasks with Depends on satisfied + no file overlap" [shape=box];
+    "Dispatch all in group as parallel Agent calls" [shape=box];
     "Invoke design-to-code:tdd-verify-from-spec" [shape=doublecircle];
 
-    "Read plan.md, extract all tasks, create TodoWrite" -> "Dispatch implementer (./implementer-prompt.md)";
+    "Read plan.md, extract all tasks, create TodoWrite" -> "Ready tasks remain?";
+    "Ready tasks remain?" -> "Group: tasks with Depends on satisfied + no file overlap" [label="yes"];
+    "Ready tasks remain?" -> "Invoke design-to-code:tdd-verify-from-spec" [label="no"];
+    "Group: tasks with Depends on satisfied + no file overlap" -> "Dispatch all in group as parallel Agent calls";
+    "Dispatch all in group as parallel Agent calls" -> "Dispatch implementer (./implementer-prompt.md)";
     "Dispatch implementer (./implementer-prompt.md)" -> "Implementer has questions?";
     "Implementer has questions?" -> "Answer questions, re-dispatch implementer" [label="yes"];
     "Answer questions, re-dispatch implementer" -> "Dispatch implementer (./implementer-prompt.md)";
@@ -83,7 +89,9 @@ digraph process {
     "Code-quality review passes?" -> "Re-dispatch implementer with quality feedback" [label="no"];
     "Re-dispatch implementer with quality feedback" -> "Dispatch code-quality-reviewer (./code-quality-reviewer-prompt.md)";
     "Code-quality review passes?" -> "Mark task complete; append progress.md" [label="yes"];
-    "Mark task complete; append progress.md" -> "More tasks remain?";
+    "Mark task complete; append progress.md" -> "Ready tasks remain?";
+}
+```
     "More tasks remain?" -> "Dispatch implementer (./implementer-prompt.md)" [label="yes"];
     "More tasks remain?" -> "Invoke design-to-code:tdd-verify-from-spec" [label="no"];
 }
