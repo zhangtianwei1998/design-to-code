@@ -34,7 +34,7 @@ Users may skip to a later skill when upstream artifacts already exist (have `spe
 
 ## Language
 
-`spec.md` MUST be written entirely in Chinese (Simplified). This applies to all section headings, feature descriptions, acceptance checklist items, and notes. Code identifiers, file paths, and proper nouns (framework names, library names) remain in their original form.
+`spec.md` section headings may be in English, but all body content MUST be written in Chinese (Simplified). This applies to feature descriptions, acceptance checklist items, notes, and any prose. Code identifiers, file paths, and proper nouns (framework names, library names) remain in their original form.
 
 ## Shared Discipline (applies to every skill in this plugin)
 

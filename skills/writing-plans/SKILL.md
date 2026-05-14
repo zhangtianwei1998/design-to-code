@@ -17,7 +17,7 @@ This skill writes documentation only; no production code.
 
 ## Language
 
-`plan.md` MUST be written entirely in Chinese (Simplified). This applies to all section headings, task names, goal descriptions, notes, and acceptance descriptions. Code identifiers, file paths, and proper nouns (framework names, library names) remain in their original form.
+`plan.md` section headings may be in English, but all body content MUST be written in Chinese (Simplified). This applies to task names, goal descriptions, notes, acceptance descriptions, and any prose. Code identifiers, file paths, and proper nouns (framework names, library names) remain in their original form.
 
 ## Scope Check
 
