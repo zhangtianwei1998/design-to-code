@@ -29,9 +29,8 @@ The main agent drives playwright-cli against the running app to verify each acce
 When invoked in a fresh session where the `spec.md` path was not passed from a previous skill:
 
 1. Run `find docs/design-to-code -name "spec.md" | sort` to discover existing specs.
-2. **One result** → load it automatically. Also load `progress.md` from the same directory if it exists (to understand what was implemented).
-3. **Multiple results** → list them to the user (show the date-topic directory name for each) and ask which feature to continue with. Wait for the answer before proceeding. Then load `spec.md` and `progress.md` from the chosen directory.
-4. **No results** → report that no `spec.md` was found under `docs/design-to-code/`; ask the user to run `design-to-code:brainstorming-from-design` first.
+2. **One or more results** → list them to the user (show the date-topic directory name for each) and ask which feature to continue with. Wait for the answer before proceeding. Then load `spec.md` and `progress.md` from the chosen directory.
+3. **No results** → report that no `spec.md` was found under `docs/design-to-code/`; ask the user to run `design-to-code:brainstorming-from-design` first.
 
 ## Process
 

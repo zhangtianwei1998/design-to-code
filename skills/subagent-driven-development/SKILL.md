@@ -38,9 +38,8 @@ digraph when_to_use {
 When invoked in a fresh session where the `plan.md` path was not passed from a previous skill:
 
 1. Run `find docs/design-to-code -name "plan.md" | sort` to discover existing plans.
-2. **One result** → load it automatically. Also load `spec.md` from the same directory (needed for spec-review context).
-3. **Multiple results** → list them to the user (show the date-topic directory name for each) and ask which feature to continue with. Wait for the answer before proceeding. Then load both `plan.md` and the `spec.md` in the same directory.
-4. **No results** → report that no `plan.md` was found under `docs/design-to-code/`; ask the user to run `design-to-code:writing-plans` first.
+2. **One or more results** → list them to the user (show the date-topic directory name for each) and ask which feature to continue with. Wait for the answer before proceeding. Then load both `plan.md` and the `spec.md` in the same directory.
+3. **No results** → report that no `plan.md` was found under `docs/design-to-code/`; ask the user to run `design-to-code:writing-plans` first.
 
 Also check for an existing `progress.md` in the same directory — if present, read it to understand which tasks are already complete before starting.
 
