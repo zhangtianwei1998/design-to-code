@@ -1,7 +1,0 @@
-{
-  "name": "design-to-code",
-  "version": "0.1.0",
-  "description": "A 5-stage workflow: design URL/image → spec → plan → subagent-driven implementation → playwright TDD verification → visual fidelity QA against original design. Self-contained; optional tail hand-off to .cursor/skills.",
-  "author": "tianweizhang",
-  "homepage": ""
-}
