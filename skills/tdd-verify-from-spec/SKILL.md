@@ -1,11 +1,11 @@
 ---
 name: tdd-verify-from-spec
-description: Use after design-to-code:subagent-driven-development completes. Main agent drives playwright-cli (headed, persistent) to verify each acceptance item in spec.md; failures dispatch fixer subagents. Terminal skill of the design-to-code workflow.
+description: Use after design-to-code:subagent-driven-development completes. Main agent drives playwright-cli (headed, persistent) to verify each acceptance item in spec.md; failures dispatch fixer subagents. MUST be followed by design-to-code:visual-qa-from-design.
 ---
 
 # TDD Verify from Spec
 
-The main agent drives playwright-cli against the running app to verify each acceptance item in `spec.md`. Failures dispatch fixer subagents; the loop runs until all items pass or thresholds are hit. This is the terminal skill of the `design-to-code` workflow.
+The main agent drives playwright-cli against the running app to verify each acceptance item in `spec.md`. Failures dispatch fixer subagents; the loop runs until all items pass or thresholds are hit. After all items are verified, this skill hands off to `design-to-code:visual-qa-from-design` for pixel-level visual fidelity checking.
 
 ## Plugin-wide discipline (shared HARD-GATE)
 
@@ -39,7 +39,7 @@ The main agent drives playwright-cli against the running app to verify each acce
      3. For Category A: dispatch a fixer subagent (see `./fixer-prompt.md`). When the fixer returns, wait briefly if HMR, then re-run the SAME acceptance item.
      4. For Category B: do NOT dispatch a fixer. Record the category and reasoning in `verify.log.md`. Optionally gather a little more evidence (e.g. one extra run to rule out flake); do not attempt a code change.
 
-4. **Completion** — after all items pass, report to the user that verification is complete and list the files touched by any fixers. Leave the browser running or close it per user preference. This skill is terminal; do not hand off.
+4. **Completion** — after all items pass (or are recorded as Category B), invoke `design-to-code:visual-qa-from-design` to run pixel-level visual fidelity verification against the original design source. Pass the `spec.md` path so the visual-qa skill can locate the design reference.
 
 ## Failure classification and thresholds
 
@@ -52,6 +52,12 @@ The main agent drives playwright-cli against the running app to verify each acce
 
 - `./verification-loop-prompt.md` — main agent's self-reference for driving playwright
 - `./fixer-prompt.md` — sent to fixer subagents (Category A failures only)
+
+## Integration
+
+**Required workflow skills:**
+- **design-to-code:subagent-driven-development** — runs before this skill; produces the implementation.
+- **design-to-code:visual-qa-from-design** — runs after this skill; checks pixel-level visual fidelity against the original design.
 
 ## Artifacts
 

@@ -20,14 +20,15 @@ A "visual source" is anything the assistant can read through playwright or multi
 Do NOT write any implementation code, dispatch implementer subagents, or invoke `design-to-code:writing-plans` until `spec.md` has been written and the user has explicitly approved it. Even for visually simple designs.
 </HARD-GATE>
 
-## The 4-Stage Workflow
+## The 5-Stage Workflow
 
-This plugin runs four skills in order. Each produces a single artifact that the next consumes:
+This plugin runs five skills in order. Each produces a single artifact that the next consumes:
 
 1. `design-to-code:brainstorming-from-design` — design → `spec.md` (this skill)
 2. `design-to-code:writing-plans` — `spec.md` → `plan.md`
 3. `design-to-code:subagent-driven-development` — `plan.md` → implementation + `progress.md`
 4. `design-to-code:tdd-verify-from-spec` — drive playwright to verify `spec.md` acceptance items → `verify.log.md`
+5. `design-to-code:visual-qa-from-design` — screenshot implementation and compare against original design → `visual-qa.md`
 
 Users may skip to a later skill when upstream artifacts already exist (have `spec.md` → jump to `writing-plans`; have `plan.md` → jump to `subagent-driven-development`).
 
@@ -181,4 +182,5 @@ Wait for explicit approval. On changes, return to "Write `spec.md`".
 
 **Downstream skills (for context):**
 - **design-to-code:subagent-driven-development** — executes the plan.
-- **design-to-code:tdd-verify-from-spec** — verifies acceptance items in the running app.
+- **design-to-code:tdd-verify-from-spec** — verifies functional acceptance items in the running app.
+- **design-to-code:visual-qa-from-design** — verifies pixel-level visual fidelity against the original design.
